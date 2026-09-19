@@ -11,11 +11,47 @@ React server components don't track state between rerenders, so leaving the uniq
 can cause errors with matching props and state in child components if the list order changes.
 */
 import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/use-toast";
+import { createBrowserSupabaseClient } from "@/lib/client-utils";
 import type { Database } from "@/lib/schema";
 import Image from "next/image";
+
+import { useRouter } from "next/navigation";
+
+import { Trash2 } from "lucide-react"; // I need the trashcan and edit emoji
+import EditSpeciesDialog from "./edit-species-dialog";
+import SpeciesDialog from "./species-dialog";
+
 type Species = Database["public"]["Tables"]["species"]["Row"];
 
-export default function SpeciesCard({ species }: { species: Species }) {
+export default function SpeciesCard({ species, userId }: { species: Species; userId: string }) {
+  const router = useRouter();
+  // accessing the supabase to delete
+  const handleDelete = async () => {
+    if (!confirm(`Delete ${species.scientific_name}? This cannot be undone.`)) {
+      return;
+    }
+
+    const supabase = createBrowserSupabaseClient();
+
+// try to see if any error deleting
+    const { error } = await supabase.from("species").delete().eq("id", species.id);
+    if (error) {
+      return toast({
+        title: "Something went wrong.",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+
+    router.refresh();
+
+    return toast({
+      title: "Species deleted",
+      description: `Successfully deleted ${species.scientific_name}.`,
+    });
+  };
+
   return (
     <div className="m-4 w-72 min-w-72 flex-none rounded border-2 p-3 shadow">
       {species.image && (
@@ -25,9 +61,25 @@ export default function SpeciesCard({ species }: { species: Species }) {
       )}
       <h3 className="mt-3 text-2xl font-semibold">{species.scientific_name}</h3>
       <h4 className="text-lg font-light italic">{species.common_name}</h4>
-      <p>{species.description ? species.description.slice(0, 150).trim() + "..." : ""}</p>
-      {/* Replace the button with the detailed view dialog. */}
-      <Button className="mt-3 w-full">Learn More</Button>
+      <p className="whitespace-pre-wrap text-sm text-muted-foreground">
+        {species.description
+          ? species.description.length > 150
+            ? species.description.slice(0, 150).trim() + "..."
+            : species.description
+          : ""}
+      </p>
+
+      {/* delete and edit button */}
+      <SpeciesDialog species={species} />
+      {species.author === userId && (
+        <div className="mt-3 flex gap-2">
+          <EditSpeciesDialog species={species} />
+          <Button variant="destructive" className="flex-1" onClick={() => void handleDelete()}>
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
