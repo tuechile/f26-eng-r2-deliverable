@@ -129,6 +129,50 @@ export default function AddSpeciesDialog({ userId }: { userId: string }) {
     });
   };
 
+const handleAutofill = async () => {
+  const query = form.getValues("scientific_name").trim();
+
+  if (!query) {
+    toast({
+      title: "Enter a scientific name first",
+      variant: "destructive",
+    });
+    return;
+  }
+
+  try {
+    const res = await fetch(
+      `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`
+    );
+
+    if (!res.ok) {
+      toast({
+        title: "No Wikipedia match found",
+        description: `Couldn't find a page for "${query}".`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const data = await res.json()as {
+  title?: string;
+  extract?: string;
+  thumbnail?: { source: string };
+    }
+
+    form.setValue("common_name", data.title ?? null);
+    form.setValue("description", data.extract ?? null);
+    form.setValue("image", data.thumbnail?.source ?? null);
+
+  } catch (err) {
+    toast({
+      title: "Something went wrong",
+      description: "Could not reach Wikipedia.",
+      variant: "destructive",
+    });
+  }
+};
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -137,13 +181,20 @@ export default function AddSpeciesDialog({ userId }: { userId: string }) {
           Add Species
         </Button>
       </DialogTrigger>
+
       <DialogContent className="max-h-screen overflow-y-auto sm:max-w-[600px]">
+
         <DialogHeader>
           <DialogTitle>Add Species</DialogTitle>
           <DialogDescription>
             Add a new species here. Click &quot;Add Species&quot; below when you&apos;re done.
           </DialogDescription>
         </DialogHeader>
+          <Button variant="secondary" type="button" onClick={() => void handleAutofill()}>
+    <Icons.add className="mr-3 h-5 w-5" />
+    Autofill by Scientific Name
+  </Button>
+
         <Form {...form}>
           <form onSubmit={(e: BaseSyntheticEvent) => void form.handleSubmit(onSubmit)(e)}>
             <div className="grid w-full items-center gap-4">
