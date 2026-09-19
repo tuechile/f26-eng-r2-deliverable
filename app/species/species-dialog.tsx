@@ -13,12 +13,27 @@ import {
 import { Separator } from "@/components/ui/separator";
 import type { Database } from "@/lib/schema";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createBrowserSupabaseClient } from "@/lib/client-utils";
 
 type Species = Database["public"]["Tables"]["species"]["Row"];
 
-export default function SpeciesDialog({ species }: { species: Species }) {
+export default function SpeciesDialog({ species }: { species: Species ; userId: string}) {
   const [open, setOpen] = useState<boolean>(false);
+  const [authorName, setAuthorName] = useState<string | null>(null);
+  useEffect(() => {
+    const fetchAuthor = async () => {
+      const supabase = createBrowserSupabaseClient();
+      const { data } = await supabase
+        .from("profiles")
+        .select("display_name")
+        .eq("id", species.author)
+        .single();
+
+      setAuthorName(data?.display_name ?? null);
+    };
+    void fetchAuthor();
+  }, [species.author]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -55,6 +70,13 @@ export default function SpeciesDialog({ species }: { species: Species }) {
           <DialogDescription>
             {species.description ?? "No description provided."}
           </DialogDescription>
+        </div>
+        <div>
+          <p className="font-semibold">Submitted by
+          <DialogDescription>
+            {authorName}
+          </DialogDescription>
+          </p>
         </div>
 
       </DialogContent>

@@ -15,6 +15,7 @@ import { toast } from "@/components/ui/use-toast";
 import { createBrowserSupabaseClient } from "@/lib/client-utils";
 import type { Database } from "@/lib/schema";
 import Image from "next/image";
+import { useEffect, useState } from "react";
 
 import { useRouter } from "next/navigation";
 
@@ -25,6 +26,21 @@ import SpeciesDialog from "./species-dialog";
 type Species = Database["public"]["Tables"]["species"]["Row"];
 
 export default function SpeciesCard({ species, userId }: { species: Species; userId: string }) {
+    const [authorName, setAuthorName] = useState<string | null>(null);
+    useEffect(() => {
+      const fetchAuthor = async () => {
+        const supabase = createBrowserSupabaseClient();
+        const { data } = await supabase
+          .from("profiles")
+          .select("display_name")
+          .eq("id", species.author)
+          .single();
+
+        setAuthorName(data?.display_name ?? null);
+      };
+      void fetchAuthor();
+    }, [species.author]);
+
   const router = useRouter();
   // accessing the supabase to delete
   const handleDelete = async () => {
@@ -68,10 +84,10 @@ export default function SpeciesCard({ species, userId }: { species: Species; use
             : species.description
           : ""}
       </p>
-
+      <p> Submitted by {authorName} </p>
       {/* delete and edit button */}
-      <SpeciesDialog species={species} />
-      {species.author === userId && (
+      <SpeciesDialog species={species} userId={userId}/>
+      {userId === species.author && (
         <div className="mt-3 flex gap-2">
           <EditSpeciesDialog species={species} />
           <Button variant="destructive" className="flex-1" onClick={() => void handleDelete()}>
